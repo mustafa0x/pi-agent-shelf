@@ -13,7 +13,16 @@ struct ShelfView: View {
         return store.agents.filter { agent in
             let text = [agent.displayName, agent.projectName, agent.cwd, agent.displayCWD,
                         agent.model ?? "", agent.sessionID].joined(separator: " ")
-            return words.allSatisfy { text.localizedCaseInsensitiveContains($0) }
+            return words.allSatisfy { word in
+                switch word.lowercased() {
+                case "#idle":
+                    return agent.state == .idle
+                case "#working":
+                    return agent.state == .working
+                default:
+                    return text.localizedCaseInsensitiveContains(word)
+                }
+            }
         }
     }
 
