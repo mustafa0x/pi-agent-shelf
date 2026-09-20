@@ -94,6 +94,7 @@ struct ShelfView: View {
                     }
                 }
             }
+            .clipped()
         }
     }
 
