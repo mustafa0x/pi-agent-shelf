@@ -17,7 +17,7 @@ The agent list does not require Automation permission. macOS asks for Ghostty ac
 
 Focus caches terminal IDs in memory. Each cached ID is checked against the selected agent's TTY before use. Missing or mismatched IDs trigger one fresh, server-side lookup; switching Ghostty processes clears the cache. There is no background Automation polling, and permission errors or timeouts are not retried.
 
-Open the menu-bar agent list from its icon or the global **Control-Option-P** shortcut. The regular shelf window remains available through Cmd-Tab.
+Open the menu-bar agent list from its icon or the global **Control-Option-P** shortcut. The app does not appear in the Dock or Cmd-Tab. Right-click its menu-bar icon to quit.
 
 ## Tests
 

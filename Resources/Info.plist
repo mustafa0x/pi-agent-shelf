@@ -22,6 +22,8 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>Pi Agent Shelf uses Ghostty automation to focus the selected terminal.</string>
 </dict>
