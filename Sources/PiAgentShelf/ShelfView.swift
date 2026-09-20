@@ -3,11 +3,39 @@ import SwiftUI
 struct ShelfView: View {
     @ObservedObject var store: AgentStore
     let onSelect: (PiAgent) -> Void
+    var onDismiss: () -> Void = {}
+    @State private var query = ""
+    @FocusState private var searchFocused: Bool
     @FocusState private var focusedAgentID: PiAgent.ID?
+
+    private var filteredAgents: [PiAgent] {
+        let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
+        return store.agents.filter { agent in
+            let text = [agent.displayName, agent.projectName, agent.cwd, agent.displayCWD,
+                        agent.model ?? "", agent.sessionID].joined(separator: " ")
+            return words.allSatisfy { text.localizedCaseInsensitiveContains($0) }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Filter agents", text: $query)
+                    .textFieldStyle(.plain)
+                    .focused($searchFocused)
+                    .onSubmit {
+                        if let agent = filteredAgents.first { onSelect(agent) }
+                    }
+                    .onKeyPress(.downArrow) {
+                        focusedAgentID = filteredAgents.first?.id
+                        return .handled
+                    }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 12)
             Divider()
             if let focusError = store.focusError {
                 HStack(spacing: 7) {
@@ -26,6 +54,16 @@ struct ShelfView: View {
         }
         .frame(minWidth: 480, idealWidth: 620, minHeight: 360, idealHeight: 640)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear { searchFocused = true }
+        .onExitCommand {
+            if query.isEmpty {
+                onDismiss()
+            } else {
+                query = ""
+                focusedAgentID = nil
+                searchFocused = true
+            }
+        }
     }
 
     private var header: some View {
@@ -33,7 +71,7 @@ struct ShelfView: View {
             Text("Pi agents")
                 .font(.headline)
 
-            Text("\(store.agents.count)")
+            Text(query.isEmpty ? "\(store.agents.count)" : "\(filteredAgents.count) of \(store.agents.count)")
                 .font(.caption.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -77,11 +115,15 @@ struct ShelfView: View {
                 description: Text("Open pi in Ghostty and it will appear here.")
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if filteredAgents.isEmpty {
+            ContentUnavailableView("No matching agents", systemImage: "magnifyingglass",
+                                   description: Text("Try another name, path, model, or session ID."))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     VStack(spacing: 0) {
-                        ForEach(store.agents) { agent in
+                        ForEach(filteredAgents) { agent in
                             Button {
                                 focusedAgentID = agent.id
                                 onSelect(agent)
@@ -114,34 +156,37 @@ struct ShelfView: View {
                     guard let agentID else { return }
                     proxy.scrollTo(agentID)
                 }
-                .onChange(of: store.agents.map(\.id)) { _, agentIDs in
+                .onChange(of: filteredAgents.map(\.id)) { _, agentIDs in
                     if let focusedAgentID, agentIDs.contains(focusedAgentID) {
                         return
                     }
-                    focusedAgentID = agentIDs.first
-                }
-                .onAppear {
-                    focusedAgentID = focusedAgentID ?? store.agents.first?.id
+                    if !searchFocused { focusedAgentID = agentIDs.first }
                 }
             }
         }
     }
 
     private func moveFocus(from agentID: PiAgent.ID, direction: MoveCommandDirection) {
-        guard let currentIndex = store.agents.firstIndex(where: { $0.id == agentID }) else {
+        let agents = filteredAgents
+        guard let currentIndex = agents.firstIndex(where: { $0.id == agentID }) else {
             return
         }
 
         let targetIndex: Int
         switch direction {
         case .up:
-            targetIndex = max(store.agents.startIndex, currentIndex - 1)
+            if currentIndex == 0 {
+                focusedAgentID = nil
+                searchFocused = true
+                return
+            }
+            targetIndex = currentIndex - 1
         case .down:
-            targetIndex = min(store.agents.index(before: store.agents.endIndex), currentIndex + 1)
+            targetIndex = min(agents.count - 1, currentIndex + 1)
         default:
             return
         }
-        focusedAgentID = store.agents[targetIndex].id
+        focusedAgentID = agents[targetIndex].id
     }
 
     private func relativeActivity(_ date: Date) -> String {

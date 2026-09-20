@@ -124,13 +124,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func configureMenuBarPopover() {
-        let rootView = ShelfView(store: store) { [weak self] agent in
+        var rootView = ShelfView(store: store) { [weak self] agent in
             guard let self else { return }
             store.focus(agent) { [weak self] success in
                 if success {
                     self?.menuBarPopover.performClose(nil)
                 }
             }
+        }
+
+        rootView.onDismiss = { [weak self] in
+            self?.menuBarPopover.performClose(nil)
         }
 
         menuBarPopover.behavior = .transient
@@ -182,6 +186,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        if !menuBarPopover.isShown {
+            configureMenuBarPopover()
+        }
         let visibleFrame = button.window?.screen?.visibleFrame
             ?? NSScreen.main?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 800, height: 800)
