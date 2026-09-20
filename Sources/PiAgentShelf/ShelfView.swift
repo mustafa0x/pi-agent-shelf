@@ -5,7 +5,7 @@ struct ShelfView: View {
     let onSelect: (PiAgent) -> Void
     var onDismiss: () -> Void = {}
     @State private var query = ""
-    @State private var idleOnly = false
+    @AppStorage("idleOnly") private var idleOnly = false
     @FocusState private var searchFocused: Bool
     @FocusState private var focusedAgentID: PiAgent.ID?
 
