@@ -3,6 +3,7 @@ import SwiftUI
 struct ShelfView: View {
     @ObservedObject var store: AgentStore
     let onSelect: (PiAgent) -> Void
+    @FocusState private var focusedAgentID: PiAgent.ID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,25 +78,70 @@ struct ShelfView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ScrollView(.vertical) {
-                LazyVStack(spacing: 0) {
-                    ForEach(store.agents) { agent in
-                        Button {
-                            onSelect(agent)
-                        } label: {
-                            AgentRow(agent: agent)
-                        }
-                        .buttonStyle(.plain)
-                        .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\nSession \(agent.shortSessionID)")
-                        .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), last active \(relativeActivity(agent.lastActivity))")
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(spacing: 0) {
+                        ForEach(store.agents) { agent in
+                            Button {
+                                focusedAgentID = agent.id
+                                onSelect(agent)
+                            } label: {
+                                AgentRow(
+                                    agent: agent,
+                                    isKeyboardFocused: focusedAgentID == agent.id
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .focused($focusedAgentID, equals: agent.id)
+                            .focusEffectDisabled()
+                            .onMoveCommand { direction in
+                                moveFocus(from: agent.id, direction: direction)
+                            }
+                            .onKeyPress(.return) {
+                                onSelect(agent)
+                                return .handled
+                            }
+                            .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\nSession \(agent.shortSessionID)")
+                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), last active \(relativeActivity(agent.lastActivity))")
 
-                        Divider()
-                            .padding(.leading, 40)
+                            Divider()
+                                .padding(.leading, 40)
+                        }
                     }
                 }
+                .clipped()
+                .onChange(of: focusedAgentID) { _, agentID in
+                    guard let agentID else { return }
+                    proxy.scrollTo(agentID)
+                }
+                .onChange(of: store.agents.map(\.id)) { _, agentIDs in
+                    if let focusedAgentID, agentIDs.contains(focusedAgentID) {
+                        return
+                    }
+                    focusedAgentID = agentIDs.first
+                }
+                .onAppear {
+                    focusedAgentID = focusedAgentID ?? store.agents.first?.id
+                }
             }
-            .clipped()
         }
+    }
+
+    private func moveFocus(from agentID: PiAgent.ID, direction: MoveCommandDirection) {
+        guard let currentIndex = store.agents.firstIndex(where: { $0.id == agentID }) else {
+            return
+        }
+
+        let targetIndex: Int
+        switch direction {
+        case .up:
+            targetIndex = max(store.agents.startIndex, currentIndex - 1)
+        case .down:
+            targetIndex = min(store.agents.index(before: store.agents.endIndex), currentIndex + 1)
+        default:
+            return
+        }
+        focusedAgentID = store.agents[targetIndex].id
     }
 
     private func relativeActivity(_ date: Date) -> String {
@@ -107,6 +153,7 @@ struct ShelfView: View {
 
 private struct AgentRow: View {
     let agent: PiAgent
+    let isKeyboardFocused: Bool
     @State private var isHovering = false
 
     var body: some View {
@@ -158,7 +205,7 @@ private struct AgentRow: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, minHeight: 46, maxHeight: 46, alignment: .leading)
-        .background(isHovering ? Color.accentColor.opacity(0.09) : Color.clear)
+        .background(isHovering || isKeyboardFocused ? Color.accentColor.opacity(0.09) : Color.clear)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
     }

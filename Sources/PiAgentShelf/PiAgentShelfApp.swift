@@ -14,10 +14,17 @@ enum PiAgentShelfApp {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    private static let alwaysOnTopDefaultsKey = "alwaysOnTop"
+
     private var store: AgentStore!
     private var window: NSWindow!
     private var hotKey: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
+
+    private var isAlwaysOnTop: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.alwaysOnTopDefaultsKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.alwaysOnTopDefaultsKey) }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -70,7 +77,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
+
+        let windowMenuItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Window")
+        let alwaysOnTopItem = NSMenuItem(
+            title: "Always on Top",
+            action: #selector(toggleAlwaysOnTop(_:)),
+            keyEquivalent: ""
+        )
+        alwaysOnTopItem.target = self
+        alwaysOnTopItem.state = isAlwaysOnTop ? .on : .off
+        windowMenu.addItem(alwaysOnTopItem)
+        windowMenuItem.submenu = windowMenu
+        mainMenu.addItem(windowMenuItem)
+
         NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = windowMenu
     }
 
     private func configureWindow() {
@@ -89,6 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         )
         window.title = "Pi Agent Shelf"
         window.contentMinSize = NSSize(width: 480, height: 360)
+        window.level = isAlwaysOnTop ? .floating : .normal
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentViewController = NSHostingController(rootView: rootView)
@@ -100,6 +123,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         store.refresh()
+    }
+
+    @objc private func toggleAlwaysOnTop(_ sender: NSMenuItem) {
+        isAlwaysOnTop.toggle()
+        window.level = isAlwaysOnTop ? .floating : .normal
+        sender.state = isAlwaysOnTop ? .on : .off
     }
 
     private func registerGlobalHotKey() {
