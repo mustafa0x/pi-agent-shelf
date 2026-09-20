@@ -5,12 +5,14 @@ struct ShelfView: View {
     let onSelect: (PiAgent) -> Void
     var onDismiss: () -> Void = {}
     @State private var query = ""
+    @State private var idleOnly = false
     @FocusState private var searchFocused: Bool
     @FocusState private var focusedAgentID: PiAgent.ID?
 
     private var filteredAgents: [PiAgent] {
         let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
         return store.agents.filter { agent in
+            guard !idleOnly || agent.state == .idle else { return false }
             let text = [agent.displayName, agent.projectName, agent.cwd, agent.displayCWD,
                         agent.model ?? "", agent.sessionID].joined(separator: " ")
             return words.allSatisfy { word in
@@ -42,6 +44,15 @@ struct ShelfView: View {
                         focusedAgentID = filteredAgents.first?.id
                         return .handled
                     }
+                Toggle("Idle ⌘I", isOn: $idleOnly)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .keyboardShortcut("i", modifiers: .command)
+                    .help("Show only idle agents (Command–I)")
+                    .onChange(of: idleOnly) { _, _ in
+                        focusedAgentID = nil
+                        searchFocused = true
+                    }
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 12)
@@ -65,10 +76,11 @@ struct ShelfView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { searchFocused = true }
         .onExitCommand {
-            if query.isEmpty {
+            if query.isEmpty && !idleOnly {
                 onDismiss()
             } else {
                 query = ""
+                idleOnly = false
                 focusedAgentID = nil
                 searchFocused = true
             }
@@ -80,7 +92,7 @@ struct ShelfView: View {
             Text("Pi agents")
                 .font(.headline)
 
-            Text(query.isEmpty ? "\(store.agents.count)" : "\(filteredAgents.count) of \(store.agents.count)")
+            Text(query.isEmpty && !idleOnly ? "\(store.agents.count)" : "\(filteredAgents.count) of \(store.agents.count)")
                 .font(.caption.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
