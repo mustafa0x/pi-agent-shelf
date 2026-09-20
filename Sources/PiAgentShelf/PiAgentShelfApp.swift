@@ -38,7 +38,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         configureMenuBarPopover()
         configureStatusItem()
         registerGlobalHotKey()
-        showWindow()
         store.start()
     }
 
