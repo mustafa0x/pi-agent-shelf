@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             defer: false
         )
         window.title = "Pi Agent Shelf"
-        window.minSize = NSSize(width: 480, height: 360)
+        window.contentMinSize = NSSize(width: 480, height: 360)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentViewController = NSHostingController(rootView: rootView)
