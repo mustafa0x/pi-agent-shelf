@@ -12,6 +12,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "PiAgentShelf"),
+        .testTarget(name: "PiAgentShelfTests", dependencies: ["PiAgentShelf"]),
     ],
     swiftLanguageModes: [.v5]
 )

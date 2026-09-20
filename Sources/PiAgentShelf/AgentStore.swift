@@ -7,7 +7,8 @@ final class AgentStore: ObservableObject {
     @Published private(set) var focusError: String?
 
     private let scanner = AgentScanner()
-    private let target: GhosttyTarget?
+    private let ghosttyClient = GhosttyClient()
+    private var target: GhosttyTarget?
     private var timer: Timer?
 
     init(target: GhosttyTarget? = nil, agents: [PiAgent] = []) {
@@ -28,6 +29,7 @@ final class AgentStore: ObservableObject {
 
     func refresh() {
         guard !isRefreshing else { return }
+        target = GhosttyClient.runningTarget()
         guard let target else {
             errorMessage = GhosttyClientError.notRunning.localizedDescription
             return
@@ -47,6 +49,7 @@ final class AgentStore: ObservableObject {
     }
 
     func focus(_ agent: PiAgent, completion: @escaping (Bool) -> Void) {
+        target = GhosttyClient.runningTarget()
         guard let target else {
             focusError = GhosttyClientError.notRunning.localizedDescription
             completion(false)
@@ -55,9 +58,10 @@ final class AgentStore: ObservableObject {
 
         focusError = nil
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
             let result: Result<Void, Error>
             do {
-                try GhosttyClient.focus(tty: agent.tty, target: target)
+                try self.ghosttyClient.focus(tty: agent.tty, target: target)
                 result = .success(())
             } catch {
                 result = .failure(error)
