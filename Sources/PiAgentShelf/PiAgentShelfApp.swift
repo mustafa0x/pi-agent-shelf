@@ -157,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             button.imagePosition = .imageOnly
             button.target = self
             button.action = #selector(toggleMenuBarWindow(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.toolTip = "Open Pi Agent Shelf menu — Control–Option–P"
             button.setAccessibilityIdentifier("PiAgentShelf.StatusItem")
             button.setAccessibilityTitle("Open Pi Agent Shelf menu")
@@ -172,6 +173,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func toggleMenuBarWindow(_ sender: NSStatusBarButton) {
+        if let event = NSApp.currentEvent,
+           event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+            menuBarPopover.performClose(nil)
+            let menu = NSMenu()
+            let quitItem = menu.addItem(
+                withTitle: "Quit Pi Agent Shelf",
+                action: #selector(NSApplication.terminate(_:)),
+                keyEquivalent: "q"
+            )
+            quitItem.target = NSApp
+            NSMenu.popUpContextMenu(menu, with: event, for: sender)
+            return
+        }
+
         if menuBarPopover.isShown {
             menuBarPopover.performClose(sender)
         } else {
