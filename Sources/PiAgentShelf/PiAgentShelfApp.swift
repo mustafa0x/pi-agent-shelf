@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var store: AgentStore!
     private var window: NSWindow!
+    private let menuBarPopover = NSPopover()
+    private var statusItem: NSStatusItem?
     private var hotKey: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
 
@@ -33,6 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let target = GhosttyClient.runningTarget()
         store = AgentStore(target: target)
         configureWindow()
+        configureMenuBarPopover()
+        configureStatusItem()
         registerGlobalHotKey()
         showWindow()
         store.start()
@@ -119,8 +123,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         self.window = window
     }
 
+    private func configureMenuBarPopover() {
+        let rootView = ShelfView(store: store) { [weak self] agent in
+            guard let self else { return }
+            store.focus(agent) { [weak self] success in
+                if success {
+                    self?.menuBarPopover.performClose(nil)
+                }
+            }
+        }
+
+        menuBarPopover.behavior = .transient
+        menuBarPopover.animates = true
+        menuBarPopover.contentSize = NSSize(width: 560, height: 600)
+        menuBarPopover.contentViewController = NSHostingController(rootView: rootView)
+    }
+
+    private func configureStatusItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        item.autosaveName = "PiAgentShelf.StatusItem"
+
+        if let button = item.button {
+            let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+            let image = NSImage(
+                systemSymbolName: "rectangle.stack",
+                accessibilityDescription: nil
+            )?.withSymbolConfiguration(configuration)
+            image?.isTemplate = true
+            button.image = image
+            button.imagePosition = .imageOnly
+            button.target = self
+            button.action = #selector(toggleMenuBarWindow(_:))
+            button.toolTip = "Open Pi Agent Shelf menu — Control–Option–P"
+            button.setAccessibilityIdentifier("PiAgentShelf.StatusItem")
+            button.setAccessibilityTitle("Open Pi Agent Shelf menu")
+        }
+
+        statusItem = item
+    }
+
     private func showWindow() {
         window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        store.refresh()
+    }
+
+    @objc private func toggleMenuBarWindow(_ sender: NSStatusBarButton) {
+        if menuBarPopover.isShown {
+            menuBarPopover.performClose(sender)
+        } else {
+            showMenuBarWindow()
+        }
+    }
+
+    private func showMenuBarWindow() {
+        guard let button = statusItem?.button else {
+            showWindow()
+            return
+        }
+
+        let visibleFrame = button.window?.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? NSRect(x: 0, y: 0, width: 800, height: 800)
+        menuBarPopover.contentSize = NSSize(
+            width: min(560, visibleFrame.width - 40),
+            height: min(600, visibleFrame.height - 40)
+        )
+        menuBarPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
         store.refresh()
     }
@@ -144,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 guard let userData else { return noErr }
                 let appDelegate = Unmanaged<AppDelegate>.fromOpaque(userData).takeUnretainedValue()
                 DispatchQueue.main.async {
-                    appDelegate.showWindow()
+                    appDelegate.showMenuBarWindow()
                 }
                 return noErr
             },

@@ -15,7 +15,7 @@ The build script uses the first available Developer ID Application identity. Set
 
 The agent list does not require Automation permission. macOS asks for Ghostty access so selecting an agent can focus its terminal.
 
-Bring the shelf forward from Cmd-Tab or press **Control-Option-P**.
+Open the menu-bar agent list from its icon or the global **Control-Option-P** shortcut. The regular shelf window remains available through Cmd-Tab.
 
 ## Requirements
 
