@@ -67,6 +67,12 @@ final class AgentScanner {
                     sessionName: snapshot.name,
                     provider: snapshot.provider,
                     model: snapshot.model,
+                    fastMode: FastModeStatus.read(
+                        at: runtimeDirectory.appendingPathComponent("\(process.pid).fast.json"),
+                        runtime: runtime,
+                        provider: snapshot.provider,
+                        model: snapshot.model
+                    ),
                     lastActivity: modifiedAt ?? fallbackDate,
                     state: snapshot.state
                 )

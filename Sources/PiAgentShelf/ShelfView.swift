@@ -164,8 +164,8 @@ struct ShelfView: View {
                                 onSelect(agent)
                                 return .handled
                             }
-                            .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\nSession \(agent.shortSessionID)")
-                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), last active \(relativeActivity(agent.lastActivity))")
+                            .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\n\(agent.fastModeDescription)\nSession \(agent.shortSessionID)")
+                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), \(agent.fastModeDescription), last active \(relativeActivity(agent.lastActivity))")
 
                             Divider()
                                 .padding(.leading, 40)
@@ -260,9 +260,16 @@ private struct AgentRow: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     if let model = agent.model {
-                        Text(model)
-                            .lineLimit(1)
-                            .frame(maxWidth: 220, alignment: .trailing)
+                        HStack(spacing: 4) {
+                            if agent.fastMode == true {
+                                Image(systemName: "bolt.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                    .help("Fast mode on")
+                            }
+                            Text(model)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: 220, alignment: .trailing)
                     }
                 }
                 .font(.caption2)

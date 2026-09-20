@@ -31,6 +31,7 @@ struct PiAgent: Identifiable, Sendable {
     let sessionName: String?
     let provider: String?
     let model: String?
+    let fastMode: Bool?
     let lastActivity: Date
     let state: AgentState
 
@@ -46,6 +47,11 @@ struct PiAgent: Identifiable, Sendable {
             return sessionName
         }
         return projectName
+    }
+
+    var fastModeDescription: String {
+        guard let fastMode else { return "Fast mode unknown" }
+        return fastMode ? "Fast mode on" : "Fast mode off"
     }
 
     var shortSessionID: String {

@@ -19,10 +19,12 @@ Focus caches terminal IDs in memory. Each cached ID is checked against the selec
 
 Open the menu-bar agent list from its icon or the global **Control-Option-P** shortcut. The app does not appear in the Dock or Cmd-Tab. Right-click its menu-bar icon to quit.
 
+A small lightning bolt beside the model indicates that agent has Fast mode enabled. This requires the [Fast extension reporting patch](Integrations/fast-mode/README.md); unreported status is unknown, not off.
+
 ## Tests
 
 ```bash
-swift test --filter GhosttyClientTests
+swift test --filter 'FastModeStatusTests|GhosttyClientTests'
 ```
 
 These tests use a fake script runner; they do not contact Ghostty or change terminal focus.

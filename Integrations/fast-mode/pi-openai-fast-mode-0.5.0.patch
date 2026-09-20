@@ -1,0 +1,48 @@
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1 +1,3 @@
+-import { dirname } from "node:path";
++import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
++import { dirname, join } from "node:path";
++import { getAgentDir } from "@earendil-works/pi-coding-agent";
+@@ -17 +19 @@
+-import { clearFastStatus, updateFastStatus } from "./status";
++import { clearFastStatus, getStatusText, updateFastStatus } from "./status";
+@@ -48,0 +51 @@
++    const runtimePath = join(agentDir ?? getAgentDir(), "session-runtime", `${process.pid}.fast.json`);
+@@ -49,0 +53,20 @@
++    function updateStatus(ctx: ExtensionContext): void {
++      updateFastStatus(ctx, config, currentModel);
++      // Per-process snapshot; shared config is not the state of other live agents.
++      try {
++        mkdirSync(dirname(runtimePath), { recursive: true });
++        const temporaryPath = `${runtimePath}.tmp`;
++        writeFileSync(temporaryPath, `${JSON.stringify({
++          pid: process.pid,
++          session_id: ctx.sessionManager.getSessionId(),
++          session_file: ctx.sessionManager.getSessionFile(),
++          provider: currentModel?.provider,
++          model: currentModel?.id,
++          enabled: getStatusText(config, currentModel) === "fast",
++        })}\n`);
++        renameSync(temporaryPath, runtimePath);
++      } catch (error) {
++        notifyError(ctx, error);
++      }
++    }
++
+@@ -112 +135 @@
+-          updateFastStatus(ctx, config, currentModel);
++          updateStatus(ctx);
+@@ -129 +152 @@
+-        updateFastStatus(ctx, config, currentModel);
++        updateStatus(ctx);
+@@ -137 +160 @@
+-      updateFastStatus(ctx, config, currentModel);
++      updateStatus(ctx);
+@@ -153,0 +177,5 @@
++        try {
++          rmSync(runtimePath, { force: true });
++        } catch (error) {
++          notifyError(ctx, error);
++        }
