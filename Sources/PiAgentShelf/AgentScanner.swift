@@ -2,6 +2,8 @@ import Foundation
 
 private struct SessionSnapshot {
     let name: String?
+    let provider: String?
+    let model: String?
     let state: AgentState
 }
 
@@ -11,30 +13,39 @@ private struct CachedSessionSnapshot {
     let snapshot: SessionSnapshot
 }
 
+private struct ProcessRecord {
+    let pid: Int32
+    let parentPID: Int32
+    let tty: String
+    let command: String
+}
+
 final class AgentScanner {
     private let iso8601 = ISO8601DateFormatter()
     private var sessionCache: [String: CachedSessionSnapshot] = [:]
 
-    func scan() -> ScanResult {
+    func scan(ghosttyProcessIdentifier: pid_t) -> ScanResult {
         do {
-            let terminals = try GhosttyClient.terminals()
-            let piProcesses = try livePiProcessesByTTY()
+            let processes = try processTable()
+            let processesByPID = Dictionary(uniqueKeysWithValues: processes.map { ($0.pid, $0) })
+            let ghosttyPID = Int32(ghosttyProcessIdentifier)
+            let piProcesses = processes.filter {
+                URL(fileURLWithPath: $0.command).lastPathComponent == "pi"
+                    && $0.tty != "??"
+                    && isDescendant($0.pid, of: ghosttyPID, processesByPID: processesByPID)
+            }
+
             let runtimeDirectory = FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent(".pi/agent/session-runtime", isDirectory: true)
             let decoder = JSONDecoder()
-
             var activeSessionFiles = Set<String>()
-            let agents = terminals.compactMap { terminal -> PiAgent? in
-                let normalizedTTY = normalizeTTY(terminal.tty)
-                guard let pid = piProcesses[normalizedTTY] else {
-                    return nil
-                }
 
-                let runtimeURL = runtimeDirectory.appendingPathComponent("\(pid).json")
+            let agents = piProcesses.compactMap { process -> PiAgent? in
+                let runtimeURL = runtimeDirectory.appendingPathComponent("\(process.pid).json")
                 guard
                     let runtimeData = try? Data(contentsOf: runtimeURL),
                     let runtime = try? decoder.decode(RuntimeRecord.self, from: runtimeData),
-                    runtime.pid == pid
+                    runtime.pid == process.pid
                 else {
                     return nil
                 }
@@ -48,15 +59,14 @@ final class AgentScanner {
                 let snapshot = sessionSnapshot(at: sessionURL, modifiedAt: modifiedAt, fileSize: fileSize)
 
                 return PiAgent(
-                    id: terminal.id,
-                    terminalID: terminal.id,
-                    terminalTitle: terminal.title,
-                    pid: pid,
-                    tty: terminal.tty,
+                    pid: process.pid,
+                    tty: "/dev/\(process.tty)",
                     cwd: runtime.cwd,
                     sessionID: runtime.sessionID,
                     sessionFile: runtime.sessionFile,
                     sessionName: snapshot.name,
+                    provider: snapshot.provider,
+                    model: snapshot.model,
                     lastActivity: modifiedAt ?? fallbackDate,
                     state: snapshot.state
                 )
@@ -75,33 +85,43 @@ final class AgentScanner {
         }
     }
 
-    private func livePiProcessesByTTY() throws -> [String: Int32] {
-        let output = try ProcessRunner.run("/bin/ps", arguments: ["-axo", "pid=,tty=,comm="])
-        var result: [String: Int32] = [:]
+    private func processTable() throws -> [ProcessRecord] {
+        let output = try ProcessRunner.run("/bin/ps", arguments: ["-axo", "pid=,ppid=,tty=,comm="])
 
-        for line in output.split(separator: "\n") {
+        return output.split(separator: "\n").compactMap { line in
             let fields = line.split(
-                maxSplits: 2,
+                maxSplits: 3,
                 omittingEmptySubsequences: true,
                 whereSeparator: { $0.isWhitespace }
             )
-            guard
-                fields.count == 3,
-                let pid = Int32(fields[0]),
-                URL(
-                    fileURLWithPath: String(fields[2]).trimmingCharacters(in: .whitespaces)
-                ).lastPathComponent == "pi"
-            else {
-                continue
+            guard fields.count == 4, let pid = Int32(fields[0]), let parentPID = Int32(fields[1]) else {
+                return nil
             }
-            result[normalizeTTY(String(fields[1]))] = pid
+            return ProcessRecord(
+                pid: pid,
+                parentPID: parentPID,
+                tty: String(fields[2]),
+                command: String(fields[3]).trimmingCharacters(in: .whitespaces)
+            )
         }
-
-        return result
     }
 
-    private func normalizeTTY(_ tty: String) -> String {
-        URL(fileURLWithPath: tty).lastPathComponent
+    private func isDescendant(
+        _ pid: Int32,
+        of ancestorPID: Int32,
+        processesByPID: [Int32: ProcessRecord]
+    ) -> Bool {
+        var currentPID = pid
+        var visited = Set<Int32>()
+
+        while let process = processesByPID[currentPID], visited.insert(currentPID).inserted {
+            if process.parentPID == ancestorPID {
+                return true
+            }
+            currentPID = process.parentPID
+        }
+
+        return false
     }
 
     private func sessionSnapshot(at url: URL, modifiedAt: Date?, fileSize: UInt64?) -> SessionSnapshot {
@@ -112,10 +132,12 @@ final class AgentScanner {
         }
 
         guard let tail = readTail(of: url, maximumBytes: 1_048_576) else {
-            return SessionSnapshot(name: nil, state: .unknown)
+            return SessionSnapshot(name: nil, provider: nil, model: nil, state: .unknown)
         }
 
         var sessionName: String?
+        var provider: String?
+        var model: String?
         var state: AgentState?
 
         for line in tail.split(separator: "\n").reversed() {
@@ -130,28 +152,44 @@ final class AgentScanner {
                 sessionName = object["name"] as? String
             }
 
-            if state == nil,
-               object["type"] as? String == "message",
+            if object["type"] as? String == "message",
                let message = object["message"] as? [String: Any],
                let role = message["role"] as? String {
-                switch role {
-                case "assistant":
-                    state = message["stopReason"] as? String == "toolUse" ? .working : .idle
-                case "user", "toolResult":
-                    state = .working
-                case "bashExecution":
-                    state = .idle
-                default:
-                    break
+                if role == "assistant" {
+                    provider = provider ?? message["provider"] as? String
+                    model = model ?? message["model"] as? String
+                }
+
+                if state == nil {
+                    switch role {
+                    case "assistant":
+                        state = message["stopReason"] as? String == "toolUse" ? .working : .idle
+                    case "user", "toolResult":
+                        state = .working
+                    case "bashExecution":
+                        state = .idle
+                    default:
+                        break
+                    }
                 }
             }
 
-            if sessionName != nil, state != nil {
+            if object["type"] as? String == "model_change" {
+                provider = provider ?? object["provider"] as? String
+                model = model ?? object["modelId"] as? String
+            }
+
+            if sessionName != nil, provider != nil, model != nil, state != nil {
                 break
             }
         }
 
-        let snapshot = SessionSnapshot(name: sessionName, state: state ?? .idle)
+        let snapshot = SessionSnapshot(
+            name: sessionName,
+            provider: provider,
+            model: model,
+            state: state ?? .idle
+        )
         sessionCache[url.path] = CachedSessionSnapshot(
             modifiedAt: modifiedAt,
             fileSize: fileSize,

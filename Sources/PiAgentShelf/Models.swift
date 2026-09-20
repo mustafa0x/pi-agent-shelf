@@ -1,13 +1,5 @@
 import Foundation
 
-struct GhosttyTerminal: Sendable {
-    let id: String
-    let pid: Int32
-    let tty: String
-    let workingDirectory: String
-    let title: String
-}
-
 struct RuntimeRecord: Decodable, Sendable {
     let pid: Int32
     let sessionID: String
@@ -31,17 +23,18 @@ enum AgentState: String, Sendable {
 }
 
 struct PiAgent: Identifiable, Sendable {
-    let id: String
-    let terminalID: String
-    let terminalTitle: String
     let pid: Int32
     let tty: String
     let cwd: String
     let sessionID: String
     let sessionFile: String
     let sessionName: String?
+    let provider: String?
+    let model: String?
     let lastActivity: Date
     let state: AgentState
+
+    var id: String { sessionID }
 
     var projectName: String {
         let name = URL(fileURLWithPath: cwd).lastPathComponent
@@ -52,14 +45,17 @@ struct PiAgent: Identifiable, Sendable {
         if let sessionName, !sessionName.isEmpty {
             return sessionName
         }
-        if !terminalTitle.isEmpty {
-            return terminalTitle
-        }
         return projectName
     }
 
     var shortSessionID: String {
         String(sessionID.prefix(8))
+    }
+
+    var displayCWD: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        guard cwd == home || cwd.hasPrefix("\(home)/") else { return cwd }
+        return "~\(cwd.dropFirst(home.count))"
     }
 }
 

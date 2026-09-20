@@ -8,6 +8,8 @@
     <string>PiAgentShelf</string>
     <key>CFBundleIdentifier</key>
     <string>com.mustafaj.PiAgentShelf</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -20,9 +22,7 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
-    <key>LSUIElement</key>
-    <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Pi Agent Shelf uses Ghostty automation to list and focus terminal surfaces.</string>
+    <string>Pi Agent Shelf uses Ghostty automation to focus the selected terminal.</string>
 </dict>
 </plist>

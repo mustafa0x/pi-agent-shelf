@@ -1,67 +1,85 @@
+import AppKit
 import Foundation
 
-private let ghosttyQueryScript = #"""
-set fieldSeparator to ASCII character 31
-set recordSeparator to ASCII character 30
-set output to ""
+struct GhosttyTarget: Sendable {
+    let bundleIdentifier: String
+    let processIdentifier: pid_t
+    let name: String
+}
 
-tell application "Ghostty"
-    repeat with terminalRef in terminals
-        set terminalDirectory to ""
-        set terminalTitle to ""
-        try
-            set terminalDirectory to working directory of terminalRef as text
-        end try
-        try
-            set terminalTitle to name of terminalRef as text
-        end try
-        set output to output & (id of terminalRef as text) & fieldSeparator & (pid of terminalRef as text) & fieldSeparator & (tty of terminalRef as text) & fieldSeparator & terminalDirectory & fieldSeparator & terminalTitle & recordSeparator
-    end repeat
-end tell
+enum GhosttyClientError: LocalizedError {
+    case notRunning
+    case automationDenied
+    case automationFailed(String)
 
-return output
-"""#
-
-private let ghosttyFocusScript = #"""
-on run argv
-    set targetID to item 1 of argv
-    tell application "Ghostty"
-        repeat with terminalRef in terminals
-            if (id of terminalRef as text) is targetID then
-                focus terminalRef
-                return "ok"
-            end if
-        end repeat
-    end tell
-    error "Ghostty terminal is no longer available"
-end run
-"""#
-
-enum GhosttyClient {
-    static func terminals() throws -> [GhosttyTerminal] {
-        let output = try ProcessRunner.run("/usr/bin/osascript", arguments: ["-e", ghosttyQueryScript])
-        let recordSeparator = Character(UnicodeScalar(30))
-        let fieldSeparator = Character(UnicodeScalar(31))
-
-        return output.split(separator: recordSeparator).compactMap { record in
-            let fields = record.split(separator: fieldSeparator, omittingEmptySubsequences: false)
-            guard fields.count == 5, let pid = Int32(fields[1]) else {
-                return nil
-            }
-            return GhosttyTerminal(
-                id: String(fields[0]),
-                pid: pid,
-                tty: String(fields[2]),
-                workingDirectory: String(fields[3]),
-                title: String(fields[4])
-            )
+    var errorDescription: String? {
+        switch self {
+        case .notRunning:
+            return "Ghostty is not running."
+        case .automationDenied:
+            return "Ghostty focus access was denied. Enable Pi Agent Shelf in System Settings → Privacy & Security → Automation."
+        case .automationFailed(let message):
+            return "Ghostty automation failed: \(message)"
         }
     }
+}
 
-    static func focus(terminalID: String) throws {
-        _ = try ProcessRunner.run(
-            "/usr/bin/osascript",
-            arguments: ["-e", ghosttyFocusScript, terminalID]
-        )
+enum GhosttyClient {
+    static func runningTarget() -> GhosttyTarget? {
+        let candidates = NSWorkspace.shared.runningApplications.compactMap { application -> (NSRunningApplication, GhosttyTarget)? in
+            guard
+                let bundleIdentifier = application.bundleIdentifier,
+                bundleIdentifier.hasPrefix("com.mitchellh.ghostty"),
+                application.executableURL?.lastPathComponent == "ghostty"
+            else {
+                return nil
+            }
+
+            return (
+                application,
+                GhosttyTarget(
+                    bundleIdentifier: bundleIdentifier,
+                    processIdentifier: application.processIdentifier,
+                    name: application.localizedName ?? "Ghostty"
+                )
+            )
+        }
+
+        return candidates.first(where: { $0.0.isActive })?.1 ?? candidates.first?.1
+    }
+
+    static func focus(tty: String, target: GhosttyTarget) throws {
+        let escapedTTY = tty
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let source = #"""
+        using terms from application "Ghostty"
+            set targetTTY to "\#(escapedTTY)"
+            tell application id "\#(target.bundleIdentifier)"
+                repeat with terminalRef in terminals
+                    if (tty of terminalRef as text) is targetTTY then
+                        ignoring application responses
+                            focus terminalRef
+                        end ignoring
+                        return "ok"
+                    end if
+                end repeat
+            end tell
+            error "Ghostty terminal is no longer available"
+        end using terms from
+        """#
+
+        do {
+            _ = try ProcessRunner.run(
+                "/usr/bin/osascript",
+                arguments: ["-e", source],
+                timeout: 60
+            )
+        } catch let failure as ProcessFailure where failure.status == 1
+            && failure.message.contains(String(errAEEventNotPermitted)) {
+            throw GhosttyClientError.automationDenied
+        } catch {
+            throw GhosttyClientError.automationFailed(error.localizedDescription)
+        }
     }
 }

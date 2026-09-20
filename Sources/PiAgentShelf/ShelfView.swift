@@ -8,9 +8,22 @@ struct ShelfView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if let focusError = store.focusError {
+                HStack(spacing: 7) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text(focusError)
+                        .lineLimit(2)
+                    Spacer()
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                Divider()
+            }
             content
         }
-        .frame(minWidth: 560, idealWidth: 980, minHeight: 174, idealHeight: 174)
+        .frame(minWidth: 480, idealWidth: 620, minHeight: 360, idealHeight: 640)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -36,18 +49,12 @@ struct ShelfView: View {
             Button {
                 store.refresh()
             } label: {
-                if store.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(width: 16, height: 16)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                        .frame(width: 16, height: 16)
-                }
+                Image(systemName: "arrow.clockwise")
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(.plain)
+            .focusEffectDisabled()
             .help("Refresh")
-            .disabled(store.isRefreshing)
         }
         .padding(.horizontal, 14)
         .frame(height: 42)
@@ -62,15 +69,6 @@ struct ShelfView: View {
                 description: Text(errorMessage)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if store.agents.isEmpty && store.isRefreshing {
-            VStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Scanning Ghostty…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if store.agents.isEmpty {
             ContentUnavailableView(
                 "No live pi agents",
@@ -79,20 +77,22 @@ struct ShelfView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 10) {
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 0) {
                     ForEach(store.agents) { agent in
                         Button {
                             onSelect(agent)
                         } label: {
-                            AgentCard(agent: agent)
+                            AgentRow(agent: agent)
                         }
                         .buttonStyle(.plain)
-                        .help(agent.cwd)
+                        .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\nSession \(agent.shortSessionID)")
                         .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), last active \(relativeActivity(agent.lastActivity))")
+
+                        Divider()
+                            .padding(.leading, 40)
                     }
                 }
-                .padding(12)
             }
         }
     }
@@ -104,68 +104,61 @@ struct ShelfView: View {
     }
 }
 
-private struct AgentCard: View {
+private struct AgentRow: View {
     let agent: PiAgent
     @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(stateColor)
-                    .frame(width: 7, height: 7)
+        HStack(spacing: 10) {
+            Circle()
+                .fill(stateColor)
+                .frame(width: 7, height: 7)
 
-                Text(agent.state.rawValue)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(stateColor)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(agent.displayName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-                Spacer(minLength: 8)
+                    if isHovering {
+                        Text(agent.shortSessionID)
+                            .font(.caption2)
+                            .monospaced()
+                            .foregroundStyle(.tertiary)
+                    }
 
-                Text(relativeActivity)
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
+                    Spacer(minLength: 8)
 
-            Spacer(minLength: 10)
+                    Text(agent.state.rawValue)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(stateColor)
 
-            Text(agent.displayName)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
+                    Text(relativeActivity)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
 
-            Text(agent.projectName)
-                .font(.caption)
+                HStack(spacing: 10) {
+                    Text(agent.displayCWD)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let model = agent.model {
+                        Text(model)
+                            .lineLimit(1)
+                            .frame(maxWidth: 220, alignment: .trailing)
+                    }
+                }
+                .font(.caption2)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .padding(.top, 3)
-
-            Spacer(minLength: 9)
-
-            HStack {
-                Text(agent.shortSessionID)
-                    .font(.caption2)
-                    .monospaced()
-                    .foregroundStyle(.tertiary)
-
-                Spacer()
-
-                Image(systemName: "arrow.up.forward.app")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(isHovering ? Color.accentColor : Color(nsColor: .tertiaryLabelColor))
             }
         }
-        .padding(12)
-        .frame(width: 196, height: 106, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(isHovering ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.1) : Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .strokeBorder(isHovering ? Color.accentColor.opacity(0.55) : Color(nsColor: .separatorColor), lineWidth: 1)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: 46, maxHeight: 46, alignment: .leading)
+        .background(isHovering ? Color.accentColor.opacity(0.09) : Color.clear)
+        .contentShape(Rectangle())
         .onHover { isHovering = $0 }
     }
 

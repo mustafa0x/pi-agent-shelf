@@ -1,8 +1,8 @@
 # Pi Agent Shelf
 
-A small macOS menu-bar app for jumping between live pi agents in Ghostty.
+A small macOS app for jumping between live pi agents in Ghostty.
 
-It lists agents in one horizontal shelf, newest activity first. It reads the existing pi runtime registry and session JSONL files; it does not run a daemon or modify sessions.
+It lists agents vertically, newest activity first. It reads the existing pi runtime registry and session JSONL files; it does not run a daemon or modify sessions.
 
 ## Build and run
 
@@ -11,9 +11,11 @@ It lists agents in one horizontal shelf, newest activity first. It reads the exi
 open ".build/Pi Agent Shelf.app"
 ```
 
-macOS will ask for permission to automate Ghostty the first time the app focuses a terminal.
+The build script uses the first available Developer ID Application identity. Set `CODE_SIGN_IDENTITY` to override it. Stable signing is required so macOS Automation approval survives rebuilds.
 
-Open the shelf from the menu-bar icon or press **Control-Option-P**.
+The agent list does not require Automation permission. macOS asks for Ghostty access so selecting an agent can focus its terminal.
+
+Bring the shelf forward from Cmd-Tab or press **Control-Option-P**.
 
 ## Requirements
 

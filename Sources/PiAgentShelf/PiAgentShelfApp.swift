@@ -3,28 +3,31 @@ import Carbon
 import SwiftUI
 
 @main
-struct PiAgentShelfApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+enum PiAgentShelfApp {
+    private static let appDelegate = AppDelegate()
 
-    var body: some Scene {
-        Settings {
-            EmptyView()
-        }
+    static func main() {
+        let application = NSApplication.shared
+        application.delegate = appDelegate
+        application.run()
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let store = AgentStore()
-    private let popover = NSPopover()
-    private var statusItem: NSStatusItem?
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    private var store: AgentStore!
+    private var window: NSWindow!
     private var hotKey: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
-        configureStatusItem()
-        configurePopover()
+        NSApp.setActivationPolicy(.regular)
+        configureMainMenu()
+
+        let target = GhosttyClient.runningTarget()
+        store = AgentStore(target: target)
+        configureWindow()
         registerGlobalHotKey()
+        showWindow()
         store.start()
     }
 
@@ -37,52 +40,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func configureStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        if let button = item.button {
-            button.image = NSImage(
-                systemSymbolName: "rectangle.stack",
-                accessibilityDescription: "Pi agents"
-            )
-            button.target = self
-            button.action = #selector(togglePopover(_:))
-            button.toolTip = "Pi Agent Shelf — Control-Option-P"
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            showWindow()
         }
-        statusItem = item
+        return true
     }
 
-    private func configurePopover() {
-        let rootView = ShelfView(store: store) { [weak self] agent in
-            guard let self else { return }
-            self.store.focus(agent) { success in
-                if success {
-                    self.popover.performClose(nil)
-                }
-            }
-        }
-
-        popover.behavior = .transient
-        popover.animates = false
-        popover.contentViewController = NSHostingController(rootView: rootView)
-        updatePopoverSize()
-    }
-
-    private func updatePopoverSize() {
-        let availableWidth = NSScreen.main?.visibleFrame.width ?? 1040
-        popover.contentSize = NSSize(width: min(1040, availableWidth - 40), height: 174)
-    }
-
-    @objc private func togglePopover(_ sender: Any?) {
-        if popover.isShown {
-            popover.performClose(sender)
-            return
-        }
-
-        guard let button = statusItem?.button else { return }
+    func windowDidBecomeKey(_ notification: Notification) {
         store.refresh()
-        updatePopoverSize()
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+
+    private func configureMainMenu() {
+        let mainMenu = NSMenu(title: "Main Menu")
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu(title: "Pi Agent Shelf")
+
+        appMenu.addItem(
+            withTitle: "About Pi Agent Shelf",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(.separator())
+        appMenu.addItem(
+            withTitle: "Quit Pi Agent Shelf",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+        NSApp.mainMenu = mainMenu
+    }
+
+    private func configureWindow() {
+        let visibleFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 800)
+        let width = min(640, visibleFrame.width - 80)
+        let height = min(680, visibleFrame.height - 100)
+        let rootView = ShelfView(store: store) { [weak self] agent in
+            self?.store.focus(agent) { _ in }
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Pi Agent Shelf"
+        window.minSize = NSSize(width: 480, height: 360)
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.contentViewController = NSHostingController(rootView: rootView)
+        window.center()
+        self.window = window
+    }
+
+    private func showWindow() {
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        store.refresh()
     }
 
     private func registerGlobalHotKey() {
@@ -98,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let userData else { return noErr }
                 let appDelegate = Unmanaged<AppDelegate>.fromOpaque(userData).takeUnretainedValue()
                 DispatchQueue.main.async {
-                    appDelegate.togglePopover(nil)
+                    appDelegate.showWindow()
                 }
                 return noErr
             },

@@ -8,7 +8,7 @@ macOS
 
 ## Stack
 
-SwiftUI and AppKit, packaged as a standalone menu-bar application.
+SwiftUI and AppKit, packaged as a standalone macOS application.
 
 ## Users
 
@@ -16,11 +16,11 @@ A developer running many simultaneous pi agents in Ghostty who needs to find and
 
 ## Product Purpose
 
-Show every live pi agent in one horizontally scrollable shelf, ordered by recent session activity. Selecting an agent focuses its exact Ghostty terminal.
+Show every live pi agent in one vertically scrollable list, ordered by recent session activity. Selecting an agent focuses its exact Ghostty terminal.
 
 ## Operating Context
 
-The app reads Ghostty's scripting API, pi runtime records under `~/.pi/agent/session-runtime/`, and pi JSONL sessions under `~/.pi/agent/sessions/`.
+The app reads live process ancestry, pi runtime records under `~/.pi/agent/session-runtime/`, and pi JSONL sessions under `~/.pi/agent/sessions/`. Ghostty scripting is used only to focus a selected terminal.
 
 ## Capabilities and Constraints
 
