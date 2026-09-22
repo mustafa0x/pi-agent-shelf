@@ -208,6 +208,11 @@ struct RenderReadmeScreenshot {
             provider: "demo",
             model: model,
             fastMode: fastMode,
+            ghosttyTarget: GhosttyTarget(
+                bundleIdentifier: "com.mitchellh.ghostty",
+                processIdentifier: 100,
+                name: "Ghostty"
+            ),
             lastActivity: activity,
             state: state
         )

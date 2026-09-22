@@ -8,11 +8,9 @@ final class AgentStore: ObservableObject {
 
     private let scanner = AgentScanner()
     private let ghosttyClient = GhosttyClient()
-    private var target: GhosttyTarget?
     private var timer: Timer?
 
-    init(target: GhosttyTarget? = nil, agents: [PiAgent] = []) {
-        self.target = target
+    init(agents: [PiAgent] = []) {
         self.agents = agents
     }
 
@@ -29,8 +27,8 @@ final class AgentStore: ObservableObject {
 
     func refresh() {
         guard !isRefreshing else { return }
-        target = GhosttyClient.runningTarget()
-        guard let target else {
+        let targets = GhosttyClient.runningTargets()
+        guard !targets.isEmpty else {
             errorMessage = GhosttyClientError.notRunning.localizedDescription
             return
         }
@@ -38,7 +36,7 @@ final class AgentStore: ObservableObject {
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self else { return }
-            let result = self.scanner.scan(ghosttyProcessIdentifier: target.processIdentifier)
+            let result = self.scanner.scan(ghosttyTargets: targets)
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.agents = result.agents
@@ -49,8 +47,11 @@ final class AgentStore: ObservableObject {
     }
 
     func focus(_ agent: PiAgent, completion: @escaping (Bool) -> Void) {
-        target = GhosttyClient.runningTarget()
-        guard let target else {
+        let targetIsRunning = GhosttyClient.runningTargets().contains {
+            $0.processIdentifier == agent.ghosttyTarget.processIdentifier
+                && $0.bundleIdentifier == agent.ghosttyTarget.bundleIdentifier
+        }
+        guard targetIsRunning else {
             focusError = GhosttyClientError.notRunning.localizedDescription
             completion(false)
             return
@@ -61,7 +62,7 @@ final class AgentStore: ObservableObject {
             guard let self else { return }
             let result: Result<Void, Error>
             do {
-                try self.ghosttyClient.focus(tty: agent.tty, target: target)
+                try self.ghosttyClient.focus(tty: agent.tty, target: agent.ghosttyTarget)
                 result = .success(())
             } catch {
                 result = .failure(error)

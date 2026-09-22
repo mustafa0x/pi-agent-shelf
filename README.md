@@ -30,10 +30,10 @@ A small lightning bolt beside the model indicates that agent has Fast mode enabl
 ## Tests
 
 ```bash
-swift test --filter 'FastModeStatusTests|GhosttyClientTests'
+swift test
 ```
 
-These tests use a fake script runner; they do not contact Ghostty or change terminal focus.
+These tests use fixture process tables and a fake script runner; they do not contact Ghostty or change terminal focus.
 
 ## Requirements
 

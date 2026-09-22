@@ -32,8 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.accessory)
         configureMainMenu()
 
-        let target = GhosttyClient.runningTarget()
-        store = AgentStore(target: target)
+        store = AgentStore()
         configureWindow()
         configureMenuBarPopover()
         configureStatusItem()

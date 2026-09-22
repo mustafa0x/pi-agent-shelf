@@ -13,7 +13,7 @@ private struct CachedSessionSnapshot {
     let snapshot: SessionSnapshot
 }
 
-private struct ProcessRecord {
+struct ProcessRecord {
     let pid: Int32
     let parentPID: Int32
     let tty: String
@@ -22,25 +22,44 @@ private struct ProcessRecord {
 
 final class AgentScanner {
     private let iso8601 = ISO8601DateFormatter()
+    private let runtimeDirectory: URL
+    private let loadProcesses: () throws -> [ProcessRecord]
     private var sessionCache: [String: CachedSessionSnapshot] = [:]
 
-    func scan(ghosttyProcessIdentifier: pid_t) -> ScanResult {
+    init(
+        runtimeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".pi/agent/session-runtime", isDirectory: true),
+        processTable: (() throws -> [ProcessRecord])? = nil
+    ) {
+        self.runtimeDirectory = runtimeDirectory
+        self.loadProcesses = processTable ?? Self.processTable
+    }
+
+    func scan(ghosttyTargets: [GhosttyTarget]) -> ScanResult {
         do {
-            let processes = try processTable()
+            let processes = try loadProcesses()
             let processesByPID = Dictionary(uniqueKeysWithValues: processes.map { ($0.pid, $0) })
-            let ghosttyPID = Int32(ghosttyProcessIdentifier)
-            let piProcesses = processes.filter {
-                URL(fileURLWithPath: $0.command).lastPathComponent == "pi"
-                    && $0.tty != "??"
-                    && isDescendant($0.pid, of: ghosttyPID, processesByPID: processesByPID)
+            let piProcesses = processes.compactMap { process -> (ProcessRecord, GhosttyTarget)? in
+                guard
+                    URL(fileURLWithPath: process.command).lastPathComponent == "pi",
+                    process.tty != "??",
+                    let target = ghosttyTargets.first(where: {
+                        isDescendant(
+                            process.pid,
+                            of: Int32($0.processIdentifier),
+                            processesByPID: processesByPID
+                        )
+                    })
+                else {
+                    return nil
+                }
+                return (process, target)
             }
 
-            let runtimeDirectory = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".pi/agent/session-runtime", isDirectory: true)
             let decoder = JSONDecoder()
             var activeSessionFiles = Set<String>()
 
-            let agents = piProcesses.compactMap { process -> PiAgent? in
+            let agents = piProcesses.compactMap { process, target -> PiAgent? in
                 let runtimeURL = runtimeDirectory.appendingPathComponent("\(process.pid).json")
                 guard
                     let runtimeData = try? Data(contentsOf: runtimeURL),
@@ -73,6 +92,7 @@ final class AgentScanner {
                         provider: snapshot.provider,
                         model: snapshot.model
                     ),
+                    ghosttyTarget: target,
                     lastActivity: modifiedAt ?? fallbackDate,
                     state: snapshot.state
                 )
@@ -91,7 +111,7 @@ final class AgentScanner {
         }
     }
 
-    private func processTable() throws -> [ProcessRecord] {
+    private static func processTable() throws -> [ProcessRecord] {
         let output = try ProcessRunner.run("/bin/ps", arguments: ["-axo", "pid=,ppid=,tty=,comm="])
 
         return output.split(separator: "\n").compactMap { line in

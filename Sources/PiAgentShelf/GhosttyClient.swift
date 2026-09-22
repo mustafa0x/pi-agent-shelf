@@ -40,27 +40,37 @@ final class GhosttyClient {
         self.runScript = runScript
     }
 
-    static func runningTarget() -> GhosttyTarget? {
-        let candidates = NSWorkspace.shared.runningApplications.compactMap { application -> (NSRunningApplication, GhosttyTarget)? in
-            guard
-                let bundleIdentifier = application.bundleIdentifier,
-                bundleIdentifier.hasPrefix("com.mitchellh.ghostty"),
-                application.executableURL?.lastPathComponent == "ghostty"
-            else {
-                return nil
-            }
+    static func runningTargets() -> [GhosttyTarget] {
+        NSWorkspace.shared.runningApplications
+            .compactMap { application -> (NSRunningApplication, GhosttyTarget)? in
+                guard
+                    let bundleIdentifier = application.bundleIdentifier,
+                    bundleIdentifier.hasPrefix("com.mitchellh.ghostty"),
+                    application.executableURL?.lastPathComponent == "ghostty"
+                else {
+                    return nil
+                }
 
-            return (
-                application,
-                GhosttyTarget(
-                    bundleIdentifier: bundleIdentifier,
-                    processIdentifier: application.processIdentifier,
-                    name: application.localizedName ?? "Ghostty"
+                return (
+                    application,
+                    GhosttyTarget(
+                        bundleIdentifier: bundleIdentifier,
+                        processIdentifier: application.processIdentifier,
+                        name: application.localizedName ?? "Ghostty"
+                    )
                 )
-            )
-        }
+            }
+            .sorted { left, right in
+                if left.0.isActive != right.0.isActive {
+                    return left.0.isActive
+                }
+                return left.1.processIdentifier < right.1.processIdentifier
+            }
+            .map(\.1)
+    }
 
-        return candidates.first(where: { $0.0.isActive })?.1 ?? candidates.first?.1
+    static func runningTarget() -> GhosttyTarget? {
+        runningTargets().first
     }
 
     func focus(tty: String, target: GhosttyTarget) throws {

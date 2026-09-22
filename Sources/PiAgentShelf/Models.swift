@@ -32,6 +32,7 @@ struct PiAgent: Identifiable, Sendable {
     let provider: String?
     let model: String?
     let fastMode: Bool?
+    let ghosttyTarget: GhosttyTarget
     let lastActivity: Date
     let state: AgentState
 
