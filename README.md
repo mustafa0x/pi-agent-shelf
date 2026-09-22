@@ -2,6 +2,12 @@
 
 A small macOS app for jumping between live pi agents in Ghostty.
 
+<p align="center">
+  <img src="docs/pi-agent-shelf.png" width="760" alt="Pi Agent Shelf menu-bar popover showing a list of synthetic agents">
+</p>
+
+<p align="center"><em>Screenshot uses synthetic agent data.</em></p>
+
 It lists agents vertically, newest activity first. It reads the existing pi runtime registry and session JSONL files; it does not run a daemon or modify sessions.
 
 ## Build and run

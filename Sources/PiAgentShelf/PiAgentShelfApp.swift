@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         configureStatusItem()
         registerGlobalHotKey()
         store.start()
+        DispatchQueue.main.async { [weak self] in
+            self?.showMenuBarWindow()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -51,8 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            showWindow()
+        DispatchQueue.main.async { [weak self] in
+            self?.showMenuBarWindow()
         }
         return true
     }
@@ -195,10 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showMenuBarWindow() {
-        guard let button = statusItem?.button else {
-            showWindow()
-            return
-        }
+        guard let button = statusItem?.button else { return }
 
         if !menuBarPopover.isShown {
             configureMenuBarPopover()
