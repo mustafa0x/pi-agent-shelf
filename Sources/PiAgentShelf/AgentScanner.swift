@@ -4,6 +4,7 @@ private struct SessionSnapshot {
     let name: String?
     let provider: String?
     let model: String?
+    let thinkingLevel: String?
     let state: AgentState
 }
 
@@ -86,6 +87,7 @@ final class AgentScanner {
                     sessionName: snapshot.name,
                     provider: snapshot.provider,
                     model: snapshot.model,
+                    thinkingLevel: runtime.thinkingLevel ?? snapshot.thinkingLevel,
                     fastMode: FastModeStatus.read(
                         at: runtimeDirectory.appendingPathComponent("\(process.pid).fast.json"),
                         runtime: runtime,
@@ -158,12 +160,19 @@ final class AgentScanner {
         }
 
         guard let tail = readTail(of: url, maximumBytes: 1_048_576) else {
-            return SessionSnapshot(name: nil, provider: nil, model: nil, state: .unknown)
+            return SessionSnapshot(
+                name: nil,
+                provider: nil,
+                model: nil,
+                thinkingLevel: nil,
+                state: .unknown
+            )
         }
 
         var sessionName: String?
         var provider: String?
         var model: String?
+        var thinkingLevel: String?
         var state: AgentState?
 
         for line in tail.split(separator: "\n").reversed() {
@@ -205,7 +214,12 @@ final class AgentScanner {
                 model = model ?? object["modelId"] as? String
             }
 
-            if sessionName != nil, provider != nil, model != nil, state != nil {
+            if object["type"] as? String == "thinking_level_change" {
+                thinkingLevel = thinkingLevel ?? object["thinkingLevel"] as? String
+            }
+
+            if sessionName != nil, provider != nil, model != nil,
+               thinkingLevel != nil, state != nil {
                 break
             }
         }
@@ -214,6 +228,7 @@ final class AgentScanner {
             name: sessionName,
             provider: provider,
             model: model,
+            thinkingLevel: thinkingLevel,
             state: state ?? .idle
         )
         sessionCache[url.path] = CachedSessionSnapshot(

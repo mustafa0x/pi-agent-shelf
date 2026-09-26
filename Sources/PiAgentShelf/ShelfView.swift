@@ -14,7 +14,7 @@ struct ShelfView: View {
         return store.agents.filter { agent in
             guard !idleOnly || agent.state == .idle else { return false }
             let text = [agent.displayName, agent.projectName, agent.cwd, agent.displayCWD,
-                        agent.model ?? "", agent.sessionID].joined(separator: " ")
+                        agent.model ?? "", agent.thinkingLevel ?? "", agent.sessionID].joined(separator: " ")
             return words.allSatisfy { word in
                 switch word.lowercased() {
                 case "#idle":
@@ -164,8 +164,8 @@ struct ShelfView: View {
                                 onSelect(agent)
                                 return .handled
                             }
-                            .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\n\(agent.fastModeDescription)\nSession \(agent.shortSessionID)")
-                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), \(agent.fastModeDescription), last active \(relativeActivity(agent.lastActivity))")
+                            .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\nThinking \(agent.thinkingLevelDescription)\n\(agent.fastModeDescription)\nSession \(agent.shortSessionID)")
+                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), thinking \(agent.thinkingLevelDescription), \(agent.fastModeDescription), last active \(relativeActivity(agent.lastActivity))")
 
                             Divider()
                                 .padding(.leading, 40)
@@ -268,8 +268,12 @@ private struct AgentRow: View {
                             }
                             Text(model)
                                 .lineLimit(1)
+
+                            Text(agent.thinkingLevel ?? "?")
+                                .foregroundStyle(.tertiary)
+                                .help(agent.thinkingLevelDescription)
                         }
-                        .frame(maxWidth: 220, alignment: .trailing)
+                        .frame(maxWidth: 260, alignment: .trailing)
                     }
                 }
                 .font(.caption2)

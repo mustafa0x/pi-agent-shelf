@@ -6,6 +6,7 @@ struct RuntimeRecord: Decodable, Sendable {
     let sessionFile: String
     let cwd: String
     let updatedAt: String
+    let thinkingLevel: String?
 
     enum CodingKeys: String, CodingKey {
         case pid
@@ -13,6 +14,7 @@ struct RuntimeRecord: Decodable, Sendable {
         case sessionFile = "session_file"
         case cwd
         case updatedAt = "updated_at"
+        case thinkingLevel = "thinking_level"
     }
 }
 
@@ -31,6 +33,7 @@ struct PiAgent: Identifiable, Sendable {
     let sessionName: String?
     let provider: String?
     let model: String?
+    let thinkingLevel: String?
     let fastMode: Bool?
     let ghosttyTarget: GhosttyTarget
     let lastActivity: Date
@@ -48,6 +51,10 @@ struct PiAgent: Identifiable, Sendable {
             return sessionName
         }
         return projectName
+    }
+
+    var thinkingLevelDescription: String {
+        thinkingLevel ?? "Thinking level unknown"
     }
 
     var fastModeDescription: String {

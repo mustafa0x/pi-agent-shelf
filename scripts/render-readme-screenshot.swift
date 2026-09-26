@@ -207,6 +207,7 @@ struct RenderReadmeScreenshot {
             sessionName: sessionName,
             provider: "demo",
             model: model,
+            thinkingLevel: "high",
             fastMode: fastMode,
             ghosttyTarget: GhosttyTarget(
                 bundleIdentifier: "com.mitchellh.ghostty",

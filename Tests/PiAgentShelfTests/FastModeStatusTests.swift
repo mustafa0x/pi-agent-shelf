@@ -5,7 +5,7 @@ final class FastModeStatusTests: XCTestCase {
     private var directory: URL!
     private var statusURL: URL { directory.appendingPathComponent("123.fast.json") }
     private let runtime = RuntimeRecord(
-        pid: 123, sessionID: "session-a", sessionFile: "/tmp/a.jsonl", cwd: "/tmp", updatedAt: ""
+        pid: 123, sessionID: "session-a", sessionFile: "/tmp/a.jsonl", cwd: "/tmp", updatedAt: "", thinkingLevel: nil
     )
 
     override func setUpWithError() throws {
