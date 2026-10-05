@@ -73,7 +73,8 @@ struct ShelfView: View {
             content
         }
         .frame(minWidth: 480, idealWidth: 620, minHeight: 360, idealHeight: 640)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.white)
+        .preferredColorScheme(.light)
         .onAppear { searchFocused = true }
         .onExitCommand {
             if query.isEmpty {

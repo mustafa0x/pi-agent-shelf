@@ -2,6 +2,8 @@
 
 A small macOS app for jumping between live pi agents in Ghostty.
 
+**Unofficial project.** Not affiliated with or endorsed by Pi or its maintainers. The app icon uses the [Pi logo](https://pi.dev/logo-auto.svg); attribution and license are included in [Resources/PiLogo-LICENSE](Resources/PiLogo-LICENSE).
+
 <p align="center">
   <img src="docs/pi-agent-shelf.png" width="760" alt="Pi Agent Shelf menu-bar popover showing a list of synthetic agents">
 </p>

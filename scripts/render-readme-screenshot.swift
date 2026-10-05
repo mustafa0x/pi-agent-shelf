@@ -64,7 +64,7 @@ private struct ScreenshotFrame: View {
     private var popover: some View {
         VStack(spacing: 0) {
             PopoverArrow()
-                .fill(Color(nsColor: .windowBackgroundColor))
+                .fill(Color.white)
                 .frame(width: 18, height: 9)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.trailing, 135)
