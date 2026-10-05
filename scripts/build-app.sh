@@ -14,6 +14,8 @@ cp "$BIN_DIR/PiAgentShelf" "$CONTENTS/MacOS/PiAgentShelf"
 cp "Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "Resources/AppIcon.icns" "$CONTENTS/Resources/AppIcon.icns"
 cp "Resources/PiLogo-LICENSE" "$CONTENTS/Resources/PiLogo-LICENSE"
+cp "Resources/MenuBarIcon.png" "$CONTENTS/Resources/MenuBarIcon.png"
+cp "Resources/MenuBarIcon@2x.png" "$CONTENTS/Resources/MenuBarIcon@2x.png"
 
 if [ -z "${CODE_SIGN_IDENTITY:-}" ]; then
     CODE_SIGN_IDENTITY=$(

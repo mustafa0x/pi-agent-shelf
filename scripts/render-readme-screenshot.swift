@@ -3,6 +3,7 @@ import SwiftUI
 
 private struct ScreenshotFrame: View {
     let store: AgentStore
+    let menuBarIcon: NSImage
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -37,8 +38,9 @@ private struct ScreenshotFrame: View {
             Spacer()
 
             HStack(spacing: 10) {
-                Image(systemName: "rectangle.stack")
-                    .font(.system(size: 13, weight: .medium))
+                Image(nsImage: menuBarIcon)
+                    .resizable()
+                    .frame(width: 18, height: 18)
                     .frame(width: 24, height: 22)
                     .background(.black.opacity(0.09), in: RoundedRectangle(cornerRadius: 5))
                 Image(systemName: "wifi")
@@ -159,7 +161,10 @@ struct RenderReadmeScreenshot {
             ),
         ]
 
-        let root = ScreenshotFrame(store: AgentStore(agents: agents))
+        guard let menuBarIcon = NSImage(contentsOfFile: "Resources/MenuBarIcon@2x.png") else {
+            throw ScreenshotError.iconMissing
+        }
+        let root = ScreenshotFrame(store: AgentStore(agents: agents), menuBarIcon: menuBarIcon)
             .defaultAppStorage(defaults)
             .environment(\.colorScheme, .light)
 
@@ -221,6 +226,7 @@ struct RenderReadmeScreenshot {
     }
 
     private enum ScreenshotError: Error {
+        case iconMissing
         case renderFailed
         case encodingFailed
     }

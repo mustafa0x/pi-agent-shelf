@@ -188,12 +188,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         item.autosaveName = "PiAgentShelf.StatusItem"
 
         if let button = item.button {
-            let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
-            let image = NSImage(
-                systemSymbolName: "rectangle.stack",
-                accessibilityDescription: nil
-            )?.withSymbolConfiguration(configuration)
-            image?.isTemplate = true
+            let image = NSImage(named: "MenuBarIcon")
+            image?.size = NSSize(width: 18, height: 18)
+            image?.isTemplate = false
             button.image = image
             button.imagePosition = .imageOnly
             button.target = self

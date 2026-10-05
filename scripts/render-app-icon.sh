@@ -19,3 +19,7 @@ for size in 16 32 128 256 512; do
     magick Resources/AppIcon.png -resize "${doubled}x${doubled}" "$iconset/icon_${size}x${size}@2x.png"
 done
 iconutil -c icns "$iconset" -o Resources/AppIcon.icns
+
+# The menu bar uses the colored logo alone, with no white tile or outer padding.
+magick -background none Resources/PiLogo.svg -trim +repage -resize 36x36 -depth 8 Resources/MenuBarIcon@2x.png
+magick Resources/MenuBarIcon@2x.png -resize 18x18 Resources/MenuBarIcon.png
