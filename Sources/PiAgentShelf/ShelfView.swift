@@ -7,7 +7,7 @@ struct ShelfView: View {
     @State private var query = ""
     @AppStorage("idleOnly") private var idleOnly = false
     @FocusState private var searchFocused: Bool
-    @FocusState private var focusedAgentID: PiAgent.ID?
+    @State private var selectedAgentID: PiAgent.ID?
 
     private var filteredAgents: [PiAgent] {
         let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
@@ -38,20 +38,33 @@ struct ShelfView: View {
                     .textFieldStyle(.plain)
                     .focused($searchFocused)
                     .onSubmit {
-                        if let agent = filteredAgents.first { onSelect(agent) }
+                        if let agent = filteredAgents.first(where: { $0.id == selectedAgentID }) ?? filteredAgents.first {
+                            onSelect(agent)
+                        }
                     }
                     .onKeyPress(.downArrow) {
-                        focusedAgentID = filteredAgents.first?.id
+                        moveSelection(from: selectedAgentID, direction: .down)
                         return .handled
+                    }
+                    .onKeyPress(.upArrow) {
+                        moveSelection(from: selectedAgentID, direction: .up)
+                        return .handled
+                    }
+                    .onChange(of: query) { _, _ in
+                        selectedAgentID = nil
                     }
                 Toggle("Idle ⌘I", isOn: $idleOnly)
                     .toggleStyle(.button)
                     .controlSize(.small)
+                    .focusable(false)
                     .keyboardShortcut("i", modifiers: .command)
                     .help("Show only idle agents (Command–I)")
                     .onChange(of: idleOnly) { _, _ in
-                        focusedAgentID = nil
-                        searchFocused = true
+                        selectedAgentID = nil
+                        // Restore focus after the native toggle finishes handling the shortcut.
+                        DispatchQueue.main.async {
+                            searchFocused = true
+                        }
                     }
             }
             .padding(.horizontal, 14)
@@ -81,7 +94,7 @@ struct ShelfView: View {
                 onDismiss()
             } else {
                 query = ""
-                focusedAgentID = nil
+                selectedAgentID = nil
                 searchFocused = true
             }
         }
@@ -146,19 +159,19 @@ struct ShelfView: View {
                     VStack(spacing: 0) {
                         ForEach(filteredAgents) { agent in
                             Button {
-                                focusedAgentID = agent.id
+                                selectedAgentID = agent.id
                                 onSelect(agent)
                             } label: {
                                 AgentRow(
                                     agent: agent,
-                                    isKeyboardFocused: focusedAgentID == agent.id
+                                    isSelected: selectedAgentID == agent.id
                                 )
                             }
                             .buttonStyle(.plain)
-                            .focused($focusedAgentID, equals: agent.id)
                             .focusEffectDisabled()
                             .onMoveCommand { direction in
-                                moveFocus(from: agent.id, direction: direction)
+                                moveSelection(from: agent.id, direction: direction)
+                                searchFocused = true
                             }
                             .onKeyPress(.return) {
                                 onSelect(agent)
@@ -173,23 +186,23 @@ struct ShelfView: View {
                     }
                 }
                 .clipped()
-                .onChange(of: focusedAgentID) { _, agentID in
+                .onChange(of: selectedAgentID) { _, agentID in
                     guard let agentID else { return }
                     proxy.scrollTo(agentID)
                 }
                 .onChange(of: filteredAgents.map(\.id)) { _, agentIDs in
-                    if let focusedAgentID, agentIDs.contains(focusedAgentID) {
-                        return
+                    if let selectedAgentID, !agentIDs.contains(selectedAgentID) {
+                        self.selectedAgentID = nil
                     }
-                    if !searchFocused { focusedAgentID = agentIDs.first }
                 }
             }
         }
     }
 
-    private func moveFocus(from agentID: PiAgent.ID, direction: MoveCommandDirection) {
+    private func moveSelection(from agentID: PiAgent.ID?, direction: MoveCommandDirection) {
         let agents = filteredAgents
         guard let currentIndex = agents.firstIndex(where: { $0.id == agentID }) else {
+            selectedAgentID = direction == .down ? agents.first?.id : nil
             return
         }
 
@@ -197,8 +210,7 @@ struct ShelfView: View {
         switch direction {
         case .up:
             if currentIndex == 0 {
-                focusedAgentID = nil
-                searchFocused = true
+                selectedAgentID = nil
                 return
             }
             targetIndex = currentIndex - 1
@@ -207,7 +219,7 @@ struct ShelfView: View {
         default:
             return
         }
-        focusedAgentID = agents[targetIndex].id
+        selectedAgentID = agents[targetIndex].id
     }
 
     private func relativeActivity(_ date: Date) -> String {
@@ -219,7 +231,7 @@ struct ShelfView: View {
 
 private struct AgentRow: View {
     let agent: PiAgent
-    let isKeyboardFocused: Bool
+    let isSelected: Bool
     @State private var isHovering = false
 
     var body: some View {
@@ -293,7 +305,7 @@ private struct AgentRow: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, minHeight: 46, maxHeight: 46, alignment: .leading)
-        .background(isHovering || isKeyboardFocused ? Color.accentColor.opacity(0.09) : Color.clear)
+        .background(isHovering || isSelected ? Color.accentColor.opacity(0.09) : Color.clear)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
     }

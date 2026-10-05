@@ -35,9 +35,10 @@ A small lightning bolt beside the model indicates that agent has Fast mode enabl
 
 ```bash
 swift test
+./scripts/test-keyboard-navigation.sh
 ```
 
-These tests use fixture process tables and a fake script runner; they do not contact Ghostty or change terminal focus.
+These tests use fixture process tables and a fake script runner; they do not contact Ghostty or change terminal focus. The keyboard check briefly opens a synthetic window to verify Command–I, arrow selection, Enter, and typing retain search focus.
 
 ## Requirements
 
