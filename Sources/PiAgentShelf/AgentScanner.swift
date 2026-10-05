@@ -5,6 +5,7 @@ private struct SessionSnapshot {
     let provider: String?
     let model: String?
     let thinkingLevel: String?
+    let stoppedAt: Date?
     let state: AgentState
 }
 
@@ -23,6 +24,11 @@ struct ProcessRecord {
 
 final class AgentScanner {
     private let iso8601 = ISO8601DateFormatter()
+    private let fractionalISO8601: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
     private let runtimeDirectory: URL
     private let loadProcesses: () throws -> [ProcessRecord]
     private var sessionCache: [String: CachedSessionSnapshot] = [:]
@@ -96,6 +102,7 @@ final class AgentScanner {
                     ),
                     ghosttyTarget: target,
                     lastActivity: modifiedAt ?? fallbackDate,
+                    stoppedAt: snapshot.stoppedAt,
                     state: snapshot.state
                 )
             }
@@ -165,6 +172,7 @@ final class AgentScanner {
                 provider: nil,
                 model: nil,
                 thinkingLevel: nil,
+                stoppedAt: nil,
                 state: .unknown
             )
         }
@@ -173,6 +181,7 @@ final class AgentScanner {
         var provider: String?
         var model: String?
         var thinkingLevel: String?
+        var stoppedAt: Date?
         var state: AgentState?
 
         for line in tail.split(separator: "\n").reversed() {
@@ -199,6 +208,9 @@ final class AgentScanner {
                     switch role {
                     case "assistant":
                         state = message["stopReason"] as? String == "toolUse" ? .working : .idle
+                        if state == .idle, let timestamp = object["timestamp"] as? String {
+                            stoppedAt = fractionalISO8601.date(from: timestamp) ?? iso8601.date(from: timestamp)
+                        }
                     case "user", "toolResult":
                         state = .working
                     case "bashExecution":
@@ -229,6 +241,7 @@ final class AgentScanner {
             provider: provider,
             model: model,
             thinkingLevel: thinkingLevel,
+            stoppedAt: stoppedAt,
             state: state ?? .idle
         )
         sessionCache[url.path] = CachedSessionSnapshot(

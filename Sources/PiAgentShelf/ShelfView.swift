@@ -164,7 +164,7 @@ struct ShelfView: View {
                                 return .handled
                             }
                             .help("\(agent.displayCWD)\n\(agent.model ?? "Unknown model")\nThinking \(agent.thinkingLevelDescription)\n\(agent.fastModeDescription)\nSession \(agent.shortSessionID)")
-                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue), thinking \(agent.thinkingLevelDescription), \(agent.fastModeDescription), last active \(relativeActivity(agent.lastActivity))")
+                            .accessibilityLabel("\(agent.displayName), \(agent.state.rawValue)\(agent.hasStoppedRecently(at: Date()) ? ", recently stopped" : ""), thinking \(agent.thinkingLevelDescription), \(agent.fastModeDescription), last active \(relativeActivity(agent.lastActivity))")
 
                             Divider()
                                 .padding(.leading, 40)
@@ -243,9 +243,20 @@ private struct AgentRow: View {
 
                     Spacer(minLength: 8)
 
-                    Text(agent.state.rawValue)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(stateColor)
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        HStack(spacing: 4) {
+                            if agent.hasStoppedRecently(at: context.date) {
+                                Image(systemName: "checkmark.circle")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                    .help("Stopped within the last 30 minutes")
+                                    .accessibilityLabel("Recently stopped")
+                            }
+                            Text(agent.state.rawValue)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(stateColor)
+                        }
+                    }
 
                     Text(relativeActivity)
                         .font(.caption)

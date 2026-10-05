@@ -215,6 +215,7 @@ struct RenderReadmeScreenshot {
                 name: "Ghostty"
             ),
             lastActivity: activity,
+            stoppedAt: state == .idle ? activity : nil,
             state: state
         )
     }

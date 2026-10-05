@@ -37,9 +37,16 @@ struct PiAgent: Identifiable, Sendable {
     let fastMode: Bool?
     let ghosttyTarget: GhosttyTarget
     let lastActivity: Date
+    let stoppedAt: Date?
     let state: AgentState
 
     var id: String { sessionID }
+
+    func hasStoppedRecently(at now: Date) -> Bool {
+        guard state == .idle, let stoppedAt else { return false }
+        let age = now.timeIntervalSince(stoppedAt)
+        return age >= 0 && age < 30 * 60
+    }
 
     var projectName: String {
         let name = URL(fileURLWithPath: cwd).lastPathComponent
