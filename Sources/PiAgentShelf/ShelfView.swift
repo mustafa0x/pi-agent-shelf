@@ -246,9 +246,9 @@ private struct AgentRow: View {
                     TimelineView(.periodic(from: .now, by: 60)) { context in
                         HStack(spacing: 4) {
                             if agent.hasStoppedRecently(at: context.date) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
+                                Circle()
+                                    .fill(Color.orange.opacity(0.7))
+                                    .frame(width: 5, height: 5)
                                     .help("Stopped within the last 30 minutes")
                                     .accessibilityLabel("Recently stopped")
                             }

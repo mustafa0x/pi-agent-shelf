@@ -25,7 +25,7 @@ Focus caches terminal IDs in memory. Each cached ID is checked against the selec
 
 Open the menu-bar agent list from its icon or the global **Control-Option-P** shortcut. The app does not appear in the Dock or Cmd-Tab. Right-click its menu-bar icon to quit.
 
-A subtle checkmark beside **Idle** marks agents that stopped within the last 30 minutes. It uses the last assistant completion timestamp, not subsequent session edits, and disappears when work resumes or the 30 minutes expire.
+A subtle orange dot beside **Idle** marks agents that stopped within the last 30 minutes. It uses the last assistant completion timestamp, not subsequent session edits, and disappears when work resumes or the 30 minutes expire.
 
 A small lightning bolt beside the model indicates that agent has Fast mode enabled. This requires the [Fast extension reporting patch](Integrations/fast-mode/README.md); unreported status is unknown, not off.
 
