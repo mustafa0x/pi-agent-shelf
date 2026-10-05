@@ -76,11 +76,10 @@ struct ShelfView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { searchFocused = true }
         .onExitCommand {
-            if query.isEmpty && !idleOnly {
+            if query.isEmpty {
                 onDismiss()
             } else {
                 query = ""
-                idleOnly = false
                 focusedAgentID = nil
                 searchFocused = true
             }
